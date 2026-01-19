@@ -12,10 +12,6 @@ def make_exe():
     # Configure the embedded Python interpreter
     python_config = dist.make_python_interpreter_config()
     python_config.run_filename = "test.py"  # <-- your app entry point
-    policy = dist.make_python_packaging_policy()
-    
-    # Allow Python extension modules to load from filesystem instead of memory
-    policy.allow_in_memory_shared_library_loading = False  # important
     
     # Create the executable
     exe = dist.to_python_executable(
@@ -23,9 +19,7 @@ def make_exe():
         packaging_policy=policy,
         config=python_config,
     )
-    exe.add_python_resources(
-        exe.read_virtualenv(path="/home/smritik/.pyenv/versions/ml-env-3.10")
-    )
+
     # Embed dependencies
     exe.add_python_resources(
         exe.pip_install([
@@ -65,7 +59,7 @@ def make_msi(exe):
         "markterm",
         "Markterm",
         "1.0",
-        "Your Name"
+        "Smriti Khanal"
     )
 
 
