@@ -21,9 +21,7 @@ def make_exe():
     )
     policy.resources_location = "in-memory"
     policy.resources_location_fallback =  "filesystem-relative:relative"
-     
-    for resource in exe.pip_install(["pillow"]):
-       exe.add_python_resource(resource)
+    policy.extension_module_filter = "no-libraries"
     
     # Embed dependencies
     exe.add_python_resources(
