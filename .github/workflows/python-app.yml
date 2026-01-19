@@ -17,14 +17,17 @@ jobs:
         with:
           python-version: "3.10.12"
 
-      - name: Install PyOxidizer
-        run: pip install pyoxidizer
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller textual rich markdown-it-py textual-image
 
-      - name: Build Markterm
-        run: pyoxidizer build --release
+      - name: Build Markterm binary
+        run: |
+          pyinstaller --onefile --name Markterm test.py
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: markterm-linux
-          path: build/x86_64-unknown-linux-gnu/release/install/Markterm
+          path: dist/Markterm
