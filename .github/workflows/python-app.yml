@@ -16,6 +16,8 @@ jobs:
       # ------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for tags
 
       # ------------------------------
       # 2. Setup Python
@@ -41,35 +43,30 @@ jobs:
           pyinstaller --onefile --name Markterm main.py
 
       # ------------------------------
-      # 5. Upload artifact (optional)
+      # 5. Determine release tag
       # ------------------------------
-      - name: Upload Markterm artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: markterm-linux
-          path: dist/Markterm
-
-      # ------------------------------
-      # 6. Determine next release tag
-      # ------------------------------
-      - name: Get next release tag
+      - name: Get release tag
         id: tag
         run: |
-          # Get latest tag, or default to v1.0.0
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $latest_tag"
+          # Get latest tag, or default to v0.1.0 if no tags exist
+          if git describe --tags --abbrev=0 2>/dev/null; then
+            latest_tag=$(git describe --tags --abbrev=0)
+            echo "Latest tag: $latest_tag"
+            
+            # Extract major.minor.patch
+            IFS='.' read -r major minor patch <<<"${latest_tag#v}"
+            patch=$((patch + 1))
+            next_tag="v${major}.${minor}.${patch}"
+          else
+            echo "No tags found, starting with v0.1.0"
+            next_tag="v0.1.0"
+          fi
           
-          # Extract major.minor.patch
-          IFS='.' read -r major minor patch <<<"${latest_tag#v}"
-          patch=$((patch + 1))
-          next_tag="v${major}.${minor}.${patch}"
-          echo "Next tag: $next_tag"
-
-          # Output for next steps
+          echo "Release tag: $next_tag"
           echo "next_tag=$next_tag" >> $GITHUB_OUTPUT
 
       # ------------------------------
-      # 7. Create GitHub release with artifact
+      # 6. Create GitHub release
       # ------------------------------
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
@@ -77,6 +74,6 @@ jobs:
           tag: ${{ steps.tag.outputs.next_tag }}
           name: "Markterm ${{ steps.tag.outputs.next_tag }}"
           body: "Automated release created by CI."
-          artifacts: markterm-linux
+          artifacts: "dist/Markterm"
           prerelease: false
           generateReleaseNotes: false
