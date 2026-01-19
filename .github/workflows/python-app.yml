@@ -1,10 +1,8 @@
 name: Build Markterm
 
+# Manual trigger
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -20,12 +18,10 @@ jobs:
           python-version: 3.10
 
       - name: Install PyOxidizer
-        run: |
-          pip install pyoxidizer
+        run: pip install pyoxidizer
 
       - name: Build Markterm
-        run: |
-          pyoxidizer build --release
+        run: pyoxidizer build --release
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
