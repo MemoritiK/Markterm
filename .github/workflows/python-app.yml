@@ -26,8 +26,18 @@ jobs:
         run: |
           pyinstaller --onefile --name Markterm main.py
 
-      - name: Upload binary
+      - name: Upload binary as artifact
         uses: actions/upload-artifact@v4
         with:
           name: markterm-linux
           path: dist/Markterm
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: "v1.0.0"        # You can change or make this dynamic
+          name: "Markterm v1.0.0"
+          body: "Automated release from CI"
+          draft: false
+          prerelease: false
+          files: dist/Markterm
