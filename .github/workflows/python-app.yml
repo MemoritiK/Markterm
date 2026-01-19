@@ -24,7 +24,7 @@ jobs:
 
       - name: Build Markterm binary
         run: |
-          pyinstaller --onefile --name Markterm test.py
+          pyinstaller --onefile --name Markterm main.py
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
