@@ -255,6 +255,14 @@ class MarkdownViewer(VerticalScroll):
                 
                 # Mount all markdown widgets
                 await self.mount_all(widgets)
+
+                
+                # --- Populate links in deferred links boxes ---
+                for links_box in self.query(Vertical).results():
+                    if hasattr(links_box, "_deferred_links_data"):
+                        for text, target, link_id in links_box._deferred_links_data:
+                            await links_box.mount(ClickableLink(text, target, link_id))
+                        del links_box._deferred_links_data
                 
             
             self.scroll_y = scroll_y
@@ -373,26 +381,23 @@ class MarkdownViewer(VerticalScroll):
             # First, collect all inline content from this list item
             for token in item_tokens:
                 if token.type == "inline":
-                    if token.children:
-                        for child in token.children:
-                            if child.type == "text":
-                                content = child.content
-                                # Check for checkbox at the beginning
-                                if not item_text.plain and not is_checkbox:
-                                    checkbox_match = re.match(r'^\[([ xX])\]\s*(.*)$', content)
-                                    if checkbox_match:
-                                        is_checkbox = True
-                                        checked = checkbox_match.group(1).lower() == 'x'
-                                        remaining_text = checkbox_match.group(2)
-                                        if remaining_text:
-                                            item_text.append(remaining_text, Style(color="#abb2bf"))
-                                    else:
-                                        item_text.append(content, Style(color="#abb2bf"))
-                                else:
-                                    item_text.append(content, Style(color="#abb2bf"))
-                            elif child.type == "code_inline":
-                                content = child.content
-                                item_text.append(content, Style(bgcolor="#2c313a", color="#e06c75"))
+                    # Process this inline token using your existing inline processor
+                    inline_text = await self._process_inline(token, base_path)
+                    if inline_text.plain.strip():
+                        item_text.append(inline_text)
+                elif token.type in ("fence", "code_block"):
+                    code_content = token.content or ""
+                    language = token.info or ""
+                    # Append the current list item text first if it exists
+                    if item_text.plain.strip():
+                        list_widget = await self._create_list_widget(item_text, depth, idx, 
+                                                                     is_checkbox, checked, numbered, start)
+                        widgets.append(list_widget)
+                        item_text = Text()  # reset for next content
+                    # Add code block widget
+                    code_widget = CodeBlock(code_content, language)
+                    widgets.append(code_widget)
+                                
                 
                 # Check for code blocks directly in list items
                 elif token.type in ("fence", "code_block"):
@@ -450,6 +455,7 @@ class MarkdownViewer(VerticalScroll):
             widgets = []
             current_text = Text()
             
+            
             if not token.children:
                 return [Paragraph()] if not token.content else []
             
@@ -465,6 +471,7 @@ class MarkdownViewer(VerticalScroll):
                     # Don't strip spaces that are between words
                     if in_link:
                         link_text += content
+                        current_text.append(content, Style(color="#61afef", underline=True))
                     else:
                         current_text.append(content, style_stack[-1])
                     
@@ -472,6 +479,8 @@ class MarkdownViewer(VerticalScroll):
                     content = child.content
                     if in_link:
                         link_text += content
+                        current_text.append(content, Style(color="#61afef", underline=True))
+
                     else:
                         current_text.append(content, Style(bgcolor="#2c313a", color="#e06c75"))
                     
@@ -490,27 +499,23 @@ class MarkdownViewer(VerticalScroll):
                     in_link = True
                     
                 elif child.type == "link_close":
-                    # Flush any accumulated text before the link
-                    if current_text.plain:
-                        para = Paragraph()
-                        para.update(current_text)
-                        widgets.append(para)
-                        current_text = Text()
-                    
-                    # Determine target
                     if link_href.startswith(('http://', 'https://')):
-                        target = link_href
+                            target = link_href
                     else:
                         target = (base_path / link_href).resolve()
                     
-                    # Create clickable link widget
+                    # Create clickable link widget after the paragraph
                     link_id = len(self.link_registry)
                     self.link_registry[link_id] = target
-                    widgets.append(ClickableLink(link_text or link_href, target, link_id))
+                    # Instead of appending inline, store to append later
+                    if not hasattr(self, "_deferred_links"):
+                        self._deferred_links = []
+                    self._deferred_links.append((link_text or link_href, target, link_id))
                     
                     in_link = False
                     link_text = ""
                     link_href = ""
+                    
                     
                 elif child.type == "image":
                     src = child.attrGet("src") or ""
@@ -541,12 +546,23 @@ class MarkdownViewer(VerticalScroll):
                                     current_text = Text()
                 elif child.type == "hardbreak":
                     current_text.append("\n")
+
             
             # Flush any remaining text
             if current_text.plain.strip():
                 para = Paragraph()
                 para.update(current_text)
                 widgets.append(para)
+                
+                
+                if hasattr(self, "_deferred_links") and self._deferred_links:
+                    links_box = Vertical()
+                    links_box.add_class("links-box")
+                    links_box._deferred_links_data = self._deferred_links.copy()
+                    widgets.append(links_box)
+                    self._deferred_links = []
+                             
+                
             
             return widgets if widgets else [Paragraph()]
         
