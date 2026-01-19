@@ -22,7 +22,7 @@ def make_exe():
     policy.resources_location = "in-memory"
     policy.resources_location_fallback =  "filesystem-relative:relative"
      
-   for resource in exe.pip_install(["PIL._avif"]):
+    for resource in exe.pip_install(["PIL._avif"]):
        exe.add_python_resource(resource)
     
     # Embed dependencies
